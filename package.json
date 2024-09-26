@@ -1,5 +1,5 @@
 {
-  "name": "train-log",
+  "name": "erp-api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -18,6 +18,7 @@
     "date-fns": "^3.3.1",
     "lodash": "^4.17.21",
     "lucide-react": "^0.317.0",
+    "modules": "^0.4.0",
     "moment": "^2.30.1",
     "next": "14.1.0",
     "react": "^18",
