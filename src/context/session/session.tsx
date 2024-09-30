@@ -32,7 +32,7 @@ export const SessionProvider: React.FunctionComponent<{ children: ReactNode }> =
 
     useEffect(() => {
         if (user?.id === null || user?.emp_id === null) {
-            router.push('/login')
+            router.push('/')
         }
     }, [user, router]);
 
@@ -67,7 +67,7 @@ export const SessionProvider: React.FunctionComponent<{ children: ReactNode }> =
             }
         );
 
-        const path = data?.role === 'Admin' ? '/' : '/check-in'
+        const path = data?.role === 'Admin' ? '/' : '/'
 
         router.push(path);
     };
@@ -77,7 +77,7 @@ export const SessionProvider: React.FunctionComponent<{ children: ReactNode }> =
     const logout = () => {
         sessionStorage.removeItem(`trainLog`);
 
-        router.push("/login");
+        //router.push("/login");
 
         toast(`Signed Out!`,
             {
