@@ -10,7 +10,7 @@ import { format } from "date-fns";
 // Retrieve basket info
 interface BasketProps {
     basket_id: number,
-    customer_id: number,
+    customer_id: string,
     product: string,
     quantity: number,
     purchase_date: string,
@@ -19,35 +19,57 @@ interface BasketProps {
 }
 type BasketResponse = BasketProps[]
 
-// Specials info
+// Expected Data function to check for product specials
 interface SpecialProps {
     uid: number,
-    product_id: number,
+    special_id: string,
+    stockcode: string,
+    product_description: string,
     special: string,
-    specialAmount: number,
-    specialValue: string, // percentage or value
-    specialType: string,  // e.g., 'discount'
-    startDate: string,
-    expiryDate: string
+    special_price: number,
+    special_value: string,
+    special_type: string,
+    start_date: string,
+    expiry_date: string
 }
 type SpecialsResponse = SpecialProps[]
 
+// Expected Data Function to store discounted basket information
 interface SaveClientProps {
-  basket_id: number,
-  customer_id: number,
-  product: string,
-  quantity: number,
-  product_price: number,
-  discount_applied: number,
-  final_price: number,
-  insertion_time: string
+    basket_id: number,
+    customer_id: number,
+    product: string,
+    quantity: number,
+    product_price: number,
+    discount_applied: number,
+    final_price: number,
+    insertion_time: string
 }
 type SaveClientResponse = SaveClientProps[]
+
+// determine if the customer signed up for the loyalty program
+interface CheckLoyaltyProps {
+    customer_id: string,
+    first_name: string,
+    last_name: string,
+    loyalty_tier: string
+}
+type CheckLoyaltyResponse = CheckLoyaltyProps[]
+
+//getProduct details like price and description
+interface ProductDetailProps {
+  item_code: string,
+  description: number,
+  special_price_incl: number
+}
+type ProductDetailResponse = ProductDetailProps[]
 
 // Main component
 export default function Home() {
   const [ basketData, setBasketData ] = useState<BasketResponse>([])
   const [ specialData, setSpecialData ] = useState<SpecialsResponse>([])
+  const [ loyaltyCustomer, setLoyalCustomer ] = useState<CheckLoyaltyResponse>([])
+  const [ productDetails, setProductDetails ] = useState<ProductDetailResponse>([])
 
   // Fetch basket data on mount
   useEffect(() => {
@@ -67,6 +89,38 @@ export default function Home() {
     getBasketInfo()
   }, []);
 
+  //determine if the customer is on the loyalty program
+  const determineCustomerLoyalty = async (customerId: string) => {
+    try {
+      const url = `basket/determineloyalty/${customerId}`
+      const response = await axios.get<CheckLoyaltyResponse>(`${apiEndPoint}/${url}`)
+
+      if (response.data.length > 0) {
+        setLoyalCustomer(response.data);
+        console.log("Customer is on the loyalty program:", response.data);
+        toast.success("Customer is on the loyalty program. Product specials may no be applied");
+
+      } else {
+        console.log("Customer is not on the loyalty program. No specials can be applied for the purchased products.");
+        toast.error("Customer is not on the loyalty program. No specials can be applied for the purchased products.");
+      }
+
+    } catch(error) {
+      console.error("Error checking loyalty program:", error);
+    }
+
+  }
+
+  const getProductDetails = async (itemCode: string) => {
+    try {
+      const url = `basket/getproductdetails/${itemCode}`
+      const response = await axios.get(`${apiEndPoint}/${url}`)
+      setProductDetails(response?.data);
+    } catch (error) {
+      console.error("Error fetching product details:", error);
+    }
+  }
+
   // Function to check for product specials
   const checkProductSpecials = async (product: string, total_amount: number) => {
     try {
@@ -79,10 +133,10 @@ export default function Home() {
         
         // Apply percentage or value-based discount
         let newTotal = total_amount;
-        if (special.specialValue === 'Percentage') {
-          newTotal = total_amount - (total_amount * special.specialAmount / 100);
-        } else if (special.specialValue === 'Amount') {
-          newTotal = total_amount - special.specialAmount;
+        if (special.special_value === 'Percentage') {
+          newTotal = total_amount - (total_amount * special.special_price / 100);
+        } else if (special.special_value === 'Amount') {
+          newTotal = total_amount - special.special_price;
         }
 
         console.log(`Discounted total for ${product}: ${newTotal}`);
@@ -114,50 +168,54 @@ export default function Home() {
   };
 
   // Function to save the client's transaction
-const saveClientTransaction = async (basket: BasketProps, newTotal: number, specialAmount: number) => {
-  try {
-    const ticketDate = format(
-      new Date(),
-      "EEE MMM dd yyyy HH:mm:ss 'GMT'XXX"
-    );
+  const saveClientTransaction = async (basket: BasketProps, newTotal: number, specialAmount: number) => {
+    try {
+      const ticketDate = format(
+        new Date(),
+        "EEE MMM dd yyyy HH:mm:ss 'GMT'XXX"
+      );
 
-    // Construct the payload from the updated basket data and specials
-    const payload = {
-      basket_id: basket.basket_id, // Basket ID from basket data
-      customer_id: basket.customer_id, // Customer ID from basket data
-      product: basket.product, // Product from basket data
-      quantity: basket.quantity, // Quantity from basket data
-      product_price: basket.total_amount, // Total amount (from storeDiscountedBasket) mapped to product_price
-      discount_applied: specialAmount, // Special amount applied (from checkProductSpecials)
-      final_price: newTotal, // New total after applying discount (from checkProductSpecials)
-      insertion_time: ticketDate // Insertion time for the transaction
-    };
-    
+      // Construct the payload from the updated basket data and specials
+      const payload = {
+        basket_id: basket.basket_id, // Basket ID from basket data
+        customer_id: basket.customer_id, // Customer ID from basket data
+        product: basket.product, // Product from basket data
+        quantity: basket.quantity, // Quantity from basket data
+        product_price: basket.total_amount, // Total amount (from storeDiscountedBasket) mapped to product_price
+        discount_applied: specialAmount, // Special amount applied (from checkProductSpecials)
+        final_price: newTotal, // New total after applying discount (from checkProductSpecials)
+        insertion_time: ticketDate // Insertion time for the transaction
+      };
+      
 
-    // Send the payload to the backend
-    const response = await axios.post<SaveClientResponse>(`${apiEndPoint}/basket/saveclientransaction`, payload);
+      // Send the payload to the backend
+      const response = await axios.post<SaveClientResponse>(`${apiEndPoint}/basket/saveclientransaction`, payload);
 
-    // Handle the response using the SaveClientResponse type
-    const data: SaveClientResponse = response.data;
-    console.log("Transaction saved successfully:", data);
+      // Handle the response using the SaveClientResponse type
+      const data: SaveClientResponse = response.data;
+      console.log("Transaction saved successfully:", data);
 
-    toast.success("Transaction saved successfully!");
-  } catch (error) {
-    console.error("Error saving transaction:", error);
-    toast.error("Failed to save the transaction");
-  }
-};
+      toast.success("Transaction saved successfully!");
+    } catch (error) {
+      console.error("Error saving transaction:", error);
+      toast.error("Failed to save the transaction");
+    }
+  };
 
   // Simulate checking specials, updating basket, and saving transaction
   useEffect(() => {
     if (basketData.length > 0) {
+
+      //first check if the customer is on the program
+      determineCustomerLoyalty(basketData[0].customer_id);
+
       const firstProduct = basketData[0];
   
       // Check if the special data has been processed to avoid repeating the process
       checkProductSpecials(firstProduct.product, firstProduct.total_amount)
         .then((newTotal) => {
           const special = specialData.length > 0 ? specialData[0] : null;
-          const specialAmount = special ? special.specialAmount : 0;
+          const specialAmount = special ? special.special_price : 0;
   
           // Store the updated basket info after applying special
           storeDiscountedBasket(firstProduct, newTotal);
