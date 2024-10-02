@@ -72,27 +72,38 @@ export default function Home() {
   const [ productDetails, setProductDetails ] = useState<ProductDetailResponse>([])
 
   // Fetch basket data on mount
-  useEffect(() => {
-    const getBasketInfo = async () => {
-        try {
-          const id = 2
-          const url = `basket/getcustomerbasket/${id}`
-          const response = await axios.get(`${apiEndPoint}/${url}`)
-          setBasketData(response.data)
-          console.log("Successfully retrieved basket data: ", response.data)
-        } catch (error) {
-          console.error("Error fetching basket data:", error)
-          toast.error("Failed to fetch basket data")
-        }
+  const getBasketInfo = async () => {
+    try {
+      const id = 1
+      const url = `basket/getcustomerbasket/${id}`
+      const response = await axios.get(`${apiEndPoint}/${url}`)
+      setBasketData(response.data)
+      console.log("Successfully retrieved basket data: ", response.data)
+      getBasketInfoItems()
+      console.log("callin the get basket info items")
+    } catch (error) {
+      console.error("Error fetching basket data:", error)
+      toast.error("Failed to fetch basket data")
     }
+  }
 
-    getBasketInfo()
-  }, []);
+  const getBasketInfoItems = async () => {
+    try {
+      const id = 1
+      const url = `basket/getbasketitems/${id}`
+      const response = await axios.get(`${apiEndPoint}/${url}`)
+      setSpecialData(response.data)
+      console.log("Successfully retrieved basket items data: ", response.data)
+    } catch (error) {
+      console.error("Error fetching basket items data:", error)
+      toast.error("Failed to fetch basket items data")
+    }
+  }
 
   //determine if the customer is on the loyalty program
   const determineCustomerLoyalty = async (customerId: string) => {
     try {
-      const url = `basket/determineloyalty/${customerId}`
+      const url = `basket/checkloyalty/${customerId}`
       const response = await axios.get<CheckLoyaltyResponse>(`${apiEndPoint}/${url}`)
 
       if (response.data.length > 0) {
@@ -202,70 +213,69 @@ export default function Home() {
     }
   };
 
-  // Simulate checking specials, updating basket, and saving transaction
   useEffect(() => {
     if (basketData.length > 0) {
 
       //first check if the customer is on the program
       determineCustomerLoyalty(basketData[0].customer_id);
-
-      const firstProduct = basketData[0];
+      if (loyaltyCustomer.length > 0) {
+        const firstProduct = basketData[0];
+        const productItemCode = basketData[0].basket_id;
   
-      // Check if the special data has been processed to avoid repeating the process
-      checkProductSpecials(firstProduct.product, firstProduct.total_amount)
-        .then((newTotal) => {
-          const special = specialData.length > 0 ? specialData[0] : null;
-          const specialAmount = special ? special.special_price : 0;
-  
-          // Store the updated basket info after applying special
-          storeDiscountedBasket(firstProduct, newTotal);
-          
-          // Save the transaction after storing the updated basket
-          saveClientTransaction(firstProduct, newTotal, specialAmount);
-        });
+        // Check if the special data has been processed to avoid repeating the process
+        checkProductSpecials(firstProduct.product, firstProduct.total_amount)
+          .then((newTotal) => {
+            const special = specialData.length > 0 ? specialData[0] : null;
+            const specialAmount = special ? special.special_price : 0;
+    
+            // Store the updated basket info after applying special
+            storeDiscountedBasket(firstProduct, newTotal);
+            
+            // Save the transaction after storing the updated basket
+            saveClientTransaction(firstProduct, newTotal, specialAmount);
+          });
+      }
     }
-    // Only depend on basketData, avoid triggering on specialData updates
-  }, [basketData]);
+
+  }, basketData)
+
+  // Simulate checking specials, updating basket, and saving transaction
+  // useEffect(() => {
+  //   if (basketData.length > 0) {
+
+  //     //first check if the customer is on the program
+  //     determineCustomerLoyalty(basketData[0].customer_id);
+
+  //     const firstProduct = basketData[0];
+  
+  //     // Check if the special data has been processed to avoid repeating the process
+  //     checkProductSpecials(firstProduct.product, firstProduct.total_amount)
+  //       .then((newTotal) => {
+  //         const special = specialData.length > 0 ? specialData[0] : null;
+  //         const specialAmount = special ? special.special_price : 0;
+  
+  //         // Store the updated basket info after applying special
+  //         storeDiscountedBasket(firstProduct, newTotal);
+          
+  //         // Save the transaction after storing the updated basket
+  //         saveClientTransaction(firstProduct, newTotal, specialAmount);
+  //       });
+  //   }
+  //   // Only depend on basketData, avoid triggering on specialData updates
+  // }, [basketData]);
   
   
 
   return (
     <section className="w-full h-full flex flex-col justify-center items-center gap-2 p-2 rounded bg-grey text-black">
       <div>
-        {basketData?.map(({ basket_id, customer_id, product, quantity, purchase_date, total_amount, payment_method }) => ( 
-          <div key={basket_id} className="">
-            <div className="flex gap-4">
-              <label>Basket ID:</label>
-              <p className="text-red">{basket_id}</p>
-            </div>
-            <div className="flex gap-4">
-              <label>Customer ID:</label>
-              <p className="text-red">{customer_id}</p>
-            </div>
-            <div className="flex gap-4">
-              <label>Purchased Product:</label>
-              <p className="text-red">{product}</p>
-            </div>
-            <div className="flex gap-4">
-              <label>Quantity:</label>
-              <p className="text-red">{quantity}</p>
-            </div>
-            <div className="flex gap-4">
-              <label>Purchase Date:</label>
-              <p className="text-red">{purchase_date}</p>
-            </div>
-            <div className="flex gap-4">
-              <label>Total Amount:</label>
-              <p className="text-red">{total_amount}</p>
-            </div>
-            <div className="flex gap-4">
-              <label>Payment Method:</label>
-              <p className="text-red">{payment_method}</p>
-            </div>
-          </div>
-        ))}
+          <button onClick={() => { 
+            console.log("Button clicked!"); 
+            getBasketInfo(); 
+          }} className="bg-red w-40 h-20 hover:bg-rose-400 rounded text-white">
+            Get Basket Info
+          </button>
       </div>
     </section>
   );
 }
-
